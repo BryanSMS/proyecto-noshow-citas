@@ -1,10 +1,11 @@
-# 🏥 Predicción de Inasistencias en Citas Médicas
+# Predicción de Inasistencias en Citas Médicas
 
 Modelo de Aprendizaje Estadístico para predecir la probabilidad de que un paciente
 falte (*no-show*) a su cita médica ambulatoria, desarrollado como Proyecto del curso
 **Aprendizaje Estadístico** — Universidad Privada Antenor Orrego (UPAO), 2026.
 
-🔗 **Demo en vivo:** [https://TU-APP.streamlit.app](https://TU-APP.streamlit.app) *(actualizar tras el despliegue)*
+🔗 **Demo en vivo:** [https://proyecto-noshow-citas-rim75ukjn5xjdlk7wdqeuk.streamlit.app/
+](https://TU-APP.streamlit.app)
 
 ---
 
