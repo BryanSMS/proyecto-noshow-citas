@@ -67,7 +67,7 @@ proyecto-noshow-citas/
 
 ```bash
 # 1. Clonar el repositorio
-git clone https://github.com/TU-USUARIO/proyecto-noshow-citas.git
+git clone https://github.com/BryanSMS/proyecto-noshow-citas
 cd proyecto-noshow-citas
 
 # 2. Crear entorno virtual (opcional pero recomendado)
