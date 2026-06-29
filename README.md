@@ -4,8 +4,7 @@ Modelo de Aprendizaje Estadístico para predecir la probabilidad de que un pacie
 falte (*no-show*) a su cita médica ambulatoria, desarrollado como Proyecto del curso
 **Aprendizaje Estadístico** — Universidad Privada Antenor Orrego (UPAO), 2026.
 
-🔗 **Demo en vivo:** [https://proyecto-noshow-citas-rim75ukjn5xjdlk7wdqeuk.streamlit.app/
-](https://TU-APP.streamlit.app)
+🔗 **Demo en vivo:** [App de Predicción de Citas](https://proyecto-noshow-citas-rim75ukjn5xjdlk7wdqeuk.streamlit.app/)
 
 ---
 
