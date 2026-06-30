@@ -100,6 +100,10 @@ html, body, [class*="css"] { font-family: 'Segoe UI', sans-serif; }
     text-align: center; margin-top: 2.5rem; padding-top: 1rem;
     border-top: 1px solid #e2e8f0;
 }
+
+/* Oculta el icono de enlace (#) que Streamlit agrega automáticamente
+   a los encabezados — no aporta nada útil dentro de la app. */
+[data-testid="stHeaderActionElements"] { display: none; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -152,6 +156,12 @@ def predecir_pacientes(df: pd.DataFrame) -> pd.DataFrame:
         bins=[-0.01, 0.30, 0.50, 1.0],
         labels=["BAJO", "MEDIO", "ALTO"]
     ).astype(str)
+
+    # Adjuntamos también el vector exacto enviado al modelo (columnas finales,
+    # ya escaladas/codificadas) para poder mostrarlo como evidencia/depuración.
+    for col in columnas_modelo:
+        df[f"_modelo_{col}"] = entrada[col].values
+
     return df
 
 # ──────────────────────────────────────────────────────────────────
@@ -174,29 +184,35 @@ with tab1:
     col_izq, col_der = st.columns([1, 1], gap="large")
 
     with col_izq:
-        st.markdown('<div class="form-section"><h4>Datos del paciente</h4>', unsafe_allow_html=True)
-        genero = st.selectbox("Género", ["Femenino", "Masculino"], key="ind_genero")
-        edad   = st.number_input("Edad", min_value=0, max_value=115, value=35, key="ind_edad")
-        barrio = st.selectbox("Barrio / Distrito", sorted(le_barrios.classes_), key="ind_barrio")
-        beca   = st.checkbox("Recibe beca social (Scholarship)", key="ind_beca")
-        st.markdown('</div>', unsafe_allow_html=True)
+        with st.container(border=True):
+            st.markdown("**Datos del paciente**")
+            genero = st.selectbox("Género", ["Femenino", "Masculino"], key="ind_genero")
+            edad   = st.number_input("Edad", min_value=0, max_value=115, value=35, key="ind_edad")
+            barrio = st.selectbox("Barrio / Distrito", sorted(le_barrios.classes_), key="ind_barrio")
+            beca   = st.checkbox("Recibe beca social (Scholarship)", key="ind_beca")
 
-        st.markdown('<div class="form-section"><h4>Condiciones de salud</h4>', unsafe_allow_html=True)
-        c1, c2 = st.columns(2)
-        with c1:
-            hiper   = st.checkbox("Hipertensión", key="ind_hiper")
-            alcohol = st.checkbox("Alcoholismo",  key="ind_alcohol")
-        with c2:
-            diabetes = st.checkbox("Diabetes", key="ind_diabetes")
-        discap = st.slider("Nivel de discapacidad", 0, 4, 0, key="ind_discap")
-        st.markdown('</div>', unsafe_allow_html=True)
+        with st.container(border=True):
+            st.markdown("**Condiciones de salud**")
+            c1, c2 = st.columns(2)
+            with c1:
+                hiper   = st.checkbox("Hipertensión", key="ind_hiper")
+                alcohol = st.checkbox("Alcoholismo",  key="ind_alcohol")
+            with c2:
+                diabetes = st.checkbox("Diabetes", key="ind_diabetes")
+            discap = st.slider("Nivel de discapacidad", 0, 4, 0, key="ind_discap")
 
     with col_der:
-        st.markdown('<div class="form-section"><h4>Datos de la cita</h4>', unsafe_allow_html=True)
-        dia_agenda = st.date_input("Fecha de agendamiento",   value=date.today(), key="ind_agenda")
-        dia_cita   = st.date_input("Fecha de la cita médica", value=date.today(), key="ind_cita")
-        sms        = st.checkbox("Recibirá recordatorio SMS", value=True, key="ind_sms")
-        st.markdown('</div>', unsafe_allow_html=True)
+        with st.container(border=True):
+            st.markdown("**Datos de la cita**")
+            dia_agenda = st.date_input("Fecha de agendamiento",   value=date.today(), key="ind_agenda")
+            dia_cita   = st.date_input("Fecha de la cita médica", value=date.today(), key="ind_cita")
+            sms        = st.checkbox("Recibirá recordatorio SMS", value=True, key="ind_sms")
+
+            if dia_cita - dia_agenda > pd.Timedelta(days=179):
+                st.caption(
+                    "⚠️ Esta espera supera los 179 días que el modelo conoció en su "
+                    "entrenamiento; la predicción puede no ser confiable."
+                )
 
         calcular = st.button("Calcular riesgo", type="primary",
                              use_container_width=True, key="btn_ind")
@@ -240,7 +256,10 @@ with tab1:
             """, unsafe_allow_html=True)
 
             with st.expander("Ver vector enviado al modelo"):
-                st.dataframe(res[columnas_modelo], use_container_width=True)
+                cols_debug = [f"_modelo_{c}" for c in columnas_modelo]
+                tabla_debug = res[cols_debug].copy()
+                tabla_debug.columns = columnas_modelo
+                st.dataframe(tabla_debug, use_container_width=True)
 
 # ══════════════════════════════════════════════════════════════════
 # PESTAÑA 2 — RF02
@@ -269,14 +288,33 @@ El archivo debe tener exactamente estas columnas (sensibles a mayúsculas):
 | `Discapacidad` | 0 – 4 | 0 |
 | `SMS_received` | 0 / 1 | 1 |
 
-Usa `data/agenda_ejemplo.csv` del repositorio para probar.
+Si no subes ningún archivo, se carga automáticamente `data/agenda_ejemplo.csv` del repositorio.
         """)
 
-    archivo = st.file_uploader("Sube el CSV de la agenda", type=["csv"], key="uploader_agenda")
+    archivo = st.file_uploader(
+        "Sube un CSV propio (opcional — si no subes nada, se usa la agenda de ejemplo)",
+        type=["csv"], key="uploader_agenda"
+    )
+
+    import os
+    ruta_ejemplo = os.path.join("data", "agenda_ejemplo.csv")
 
     if archivo is not None:
+        fuente = archivo
+        st.caption(f"📄 Mostrando: **{archivo.name}** (archivo subido por ti)")
+    elif os.path.exists(ruta_ejemplo):
+        fuente = ruta_ejemplo
+        st.caption("📄 Mostrando: **data/agenda_ejemplo.csv** (agenda de ejemplo del repositorio)")
+    else:
+        fuente = None
+        st.warning(
+            "No se encontró `data/agenda_ejemplo.csv` en el repositorio y no subiste "
+            "ningún archivo. Sube un CSV para continuar."
+        )
+
+    if fuente is not None:
         try:
-            df_raw = pd.read_csv(archivo)
+            df_raw = pd.read_csv(fuente)
 
             cols_req = ["PacienteID","Nombre","Genero","Edad","Barrio",
                         "FechaAgendamiento","FechaCita","HoraCita",
@@ -369,35 +407,24 @@ Usa `data/agenda_ejemplo.csv` del repositorio para probar.
             </table>
             """, unsafe_allow_html=True)
 
-            # ── Exportar lista de alto riesgo ──
-            if n_alto > 0:
-                st.markdown("")
-                df_alto = df_pred[df_pred["NivelRiesgo"] == "ALTO"][
-                    ["HoraCita","PacienteID","Nombre","Edad","Barrio","Probabilidad"]
+            # ── Exportar la lista actualmente visible (respeta el filtro elegido arriba) ──
+            st.markdown("")
+            if len(df_vista) > 0:
+                df_exportar = df_vista[
+                    ["HoraCita","PacienteID","Nombre","Edad","Barrio","Probabilidad","NivelRiesgo"]
                 ].copy()
-                df_alto["Probabilidad"] = df_alto["Probabilidad"].apply(lambda p: f"{p*100:.1f}%")
+                df_exportar["Probabilidad"] = df_exportar["Probabilidad"].apply(lambda p: f"{p*100:.1f}%")
+                etiqueta_filtro = "todos los niveles" if nivel_filtro is None else f"nivel {nivel_filtro}"
                 st.download_button(
-                    label=f"Descargar lista de {n_alto} pacientes de alto riesgo (CSV)",
-                    data=df_alto.to_csv(index=False).encode("utf-8"),
-                    file_name=f"alto_riesgo_{date.today().isoformat()}.csv",
+                    label=f"Descargar esta vista — {len(df_vista)} pacientes ({etiqueta_filtro}) (CSV)",
+                    data=df_exportar.to_csv(index=False).encode("utf-8"),
+                    file_name=f"agenda_{(nivel_filtro or 'todos').lower()}_{date.today().isoformat()}.csv",
                     mime="text/csv",
-                    key="dl_alto"
+                    key="dl_vista"
                 )
 
         except Exception as e:
             st.error(f"Error al procesar el archivo: {e}")
-
-    else:
-        st.markdown("""
-        <div style="text-align:center;padding:3rem 1rem;color:#94a3b8;">
-          <div style="font-size:3rem;margin-bottom:1rem;">📂</div>
-          <p style="font-size:1rem;font-weight:600;color:#64748b;">Ningún archivo cargado</p>
-          <p style="font-size:0.85rem;">
-            Sube el CSV de la agenda usando el botón de arriba.<br>
-            Puedes usar <code>data/agenda_ejemplo.csv</code> del repositorio para probar.
-          </p>
-        </div>
-        """, unsafe_allow_html=True)
 
 # ──────────────────────────────────────────────────────────────────
 # FOOTER
