@@ -363,10 +363,9 @@ Si no subes ningún archivo, se carga automáticamente `data/agenda_ejemplo.csv`
             mapa = {"Todos": None, "🔴 Solo ALTO": "ALTO", "🟡 Solo MEDIO": "MEDIO", "🟢 Solo BAJO": "BAJO"}
             nivel_filtro = mapa[filtro]
             df_vista = df_pred if nivel_filtro is None else df_pred[df_pred["NivelRiesgo"] == nivel_filtro]
-            orden_nivel = {"ALTO": 0, "MEDIO": 1, "BAJO": 2}
-            df_vista = df_vista.copy()
-            df_vista["_ord"] = df_vista["NivelRiesgo"].map(orden_nivel)
-            df_vista = df_vista.sort_values(["_ord", "HoraCita"]).reset_index(drop=True)
+            # RF02 exige consolidar CRONOLÓGICAMENTE las citas del día; el color de
+            # cada fila ya resalta el riesgo, así que el orden se mantiene por hora.
+            df_vista = df_vista.sort_values("HoraCita").reset_index(drop=True)
 
             # ── Tabla coloreada ──
             badge_html = {
