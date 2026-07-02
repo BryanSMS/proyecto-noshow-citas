@@ -475,12 +475,18 @@ with tab3:
 
         # ── Regla de decisión ──
         def evaluar_bloque(row):
-            saturado = row["PacientesAgendados"] > capacidad
-            if saturado:
+            agendados = row["PacientesAgendados"]
+            riesgo    = row["RiesgoAcumulado"]
+
+            if agendados > capacidad:
                 return "⚠️ Ya excede capacidad", "#fee2e2"
-            if row["RiesgoAcumulado"] >= 1.0:
-                return "🟢 Recomendado (+1 cupo)", "#dcfce7"
-            return "— No necesario", "#f8fafc"
+            elif agendados == capacidad:
+                if riesgo >= 1.0:
+                    return "🟢 Recomendado (+1 cupo)", "#dcfce7"
+                else:
+                    return "🔒 Lleno, sin riesgo suficiente", "#f1f5f9"
+            else:
+                return "— Cupo disponible (dentro de capacidad)", "#f8fafc"
 
         resumen[["Recomendacion", "_color"]] = resumen.apply(
             lambda r: pd.Series(evaluar_bloque(r)), axis=1
@@ -522,12 +528,18 @@ with tab3:
 - **Riesgo acumulado** = suma de las probabilidades individuales de inasistencia
   de todos los pacientes agendados en ese bloque horario. Matemáticamente
   representa el *número esperado de pacientes que van a faltar* en ese bloque.
-- Si el riesgo acumulado es **≥ 1**, estadísticamente se espera que al menos un
-  cupo quede vacío, por lo que se recomienda habilitar **un cupo adicional**
-  de sobreventa en ese horario.
-- Un bloque que **ya excede la capacidad** definida (más pacientes agendados
-  que cupos normales) se marca en rojo — ahí ya no se recomienda seguir
-  sumando citas, para no saturar al médico si todos llegan.
+- **— Cupo disponible**: el bloque tiene menos pacientes que la capacidad
+  definida, es decir, ya hay espacio libre dentro de lo normal. No aplica
+  "overbooking" porque no hace falta sobrevender nada.
+- **🔒 Lleno, sin riesgo suficiente**: el bloque está exactamente en su
+  capacidad máxima, pero el riesgo acumulado es menor a 1 — no hay suficiente
+  probabilidad de que alguien falte como para justificar un cupo extra.
+- **🟢 Recomendado (+1 cupo)**: el bloque está lleno **y** el riesgo acumulado
+  es ≥ 1, es decir, se espera que al menos un paciente falte. Se recomienda
+  agendar un paciente adicional como respaldo para ese horario.
+- **⚠️ Ya excede capacidad**: el bloque ya tiene más pacientes agendados que
+  la capacidad definida — no se recomienda seguir sumando citas, para no
+  saturar al médico si todos los pacientes llegaran.
             """)
 
 # ──────────────────────────────────────────────────────────────────
