@@ -174,7 +174,7 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
-tab1, tab2 = st.tabs(["👤  Paciente individual", "📋  Agenda del día"])
+tab1, tab2, tab3 = st.tabs(["👤  Paciente individual", "📋  Agenda del día", "🛏️  Overbooking"])
 
 # ══════════════════════════════════════════════════════════════════
 # PESTAÑA 1 — RF01
@@ -336,6 +336,7 @@ Si no subes ningún archivo, se carga automáticamente `data/agenda_ejemplo.csv`
 
             with st.spinner("Calculando riesgo para cada paciente..."):
                 df_pred = predecir_pacientes(df_raw)
+                st.session_state["df_pred_agenda"] = df_pred
 
             # ── Tarjetas de resumen ──
             n_alto  = (df_pred["NivelRiesgo"] == "ALTO").sum()
@@ -424,6 +425,110 @@ Si no subes ningún archivo, se carga automáticamente `data/agenda_ejemplo.csv`
 
         except Exception as e:
             st.error(f"Error al procesar el archivo: {e}")
+
+# ══════════════════════════════════════════════════════════════════
+# PESTAÑA 3 — RF03: RECOMENDACIÓN DE OVERBOOKING
+# ══════════════════════════════════════════════════════════════════
+with tab3:
+    st.markdown(
+        "##### Analiza la acumulación de riesgo por bloque horario y recomienda "
+        "dónde conviene habilitar un cupo de sobreventa (overbooking)."
+    )
+
+    if "df_pred_agenda" not in st.session_state:
+        st.markdown("""
+        <div style="text-align:center;padding:3rem 1rem;color:#94a3b8;">
+          <div style="font-size:3rem;margin-bottom:1rem;">🛏️</div>
+          <p style="font-size:1rem;font-weight:600;color:#64748b;">
+            Aún no hay una agenda cargada
+          </p>
+          <p style="font-size:0.85rem;">
+            Ve primero a la pestaña <strong>Agenda del día</strong> para cargar o
+            calcular el riesgo de los pacientes. Este panel reutiliza ese cálculo.
+          </p>
+        </div>
+        """, unsafe_allow_html=True)
+    else:
+        df_pred = st.session_state["df_pred_agenda"]
+
+        capacidad = st.number_input(
+            "Capacidad normal por bloque horario (pacientes que el consultorio "
+            "puede atender en el mismo horario sin sobreventa)",
+            min_value=1, max_value=10, value=2, step=1, key="capacidad_bloque"
+        )
+        st.caption(
+            "Este valor lo define el administrador según los médicos/consultorios "
+            "disponibles — no depende del CSV cargado."
+        )
+        st.markdown("---")
+
+        # ── Agrupar por bloque horario ──
+        resumen = (
+            df_pred.groupby("HoraCita")
+            .agg(
+                PacientesAgendados=("PacienteID", "count"),
+                RiesgoAcumulado=("Probabilidad", "sum"),
+            )
+            .reset_index()
+            .sort_values("HoraCita")
+        )
+
+        # ── Regla de decisión ──
+        def evaluar_bloque(row):
+            saturado = row["PacientesAgendados"] > capacidad
+            if saturado:
+                return "⚠️ Ya excede capacidad", "#fee2e2"
+            if row["RiesgoAcumulado"] >= 1.0:
+                return "🟢 Recomendado (+1 cupo)", "#dcfce7"
+            return "— No necesario", "#f8fafc"
+
+        resumen[["Recomendacion", "_color"]] = resumen.apply(
+            lambda r: pd.Series(evaluar_bloque(r)), axis=1
+        )
+
+        n_recomendados = (resumen["Recomendacion"].str.contains("Recomendado")).sum()
+        st.markdown(f"**{n_recomendados} de {len(resumen)} bloques horarios** con overbooking recomendado.")
+        st.markdown("")
+
+        # ── Tabla ──
+        filas_html = ""
+        for _, r in resumen.iterrows():
+            filas_html += f"""
+            <tr style="background:{r['_color']};">
+              <td style="padding:0.5rem 0.8rem;font-weight:600;">{r['HoraCita']}</td>
+              <td style="padding:0.5rem 0.8rem;text-align:center;">{r['PacientesAgendados']}</td>
+              <td style="padding:0.5rem 0.8rem;text-align:center;">{capacidad}</td>
+              <td style="padding:0.5rem 0.8rem;text-align:center;font-weight:700;">{r['RiesgoAcumulado']:.2f}</td>
+              <td style="padding:0.5rem 0.8rem;">{r['Recomendacion']}</td>
+            </tr>"""
+
+        st.markdown(f"""
+        <table style="width:100%;border-collapse:collapse;border-radius:10px;overflow:hidden;font-size:0.85rem;">
+          <thead>
+            <tr style="background:#1a3a5c;color:white;">
+              <th style="padding:0.6rem 0.8rem;text-align:left;">Bloque horario</th>
+              <th style="padding:0.6rem 0.8rem;text-align:center;">Agendados</th>
+              <th style="padding:0.6rem 0.8rem;text-align:center;">Capacidad</th>
+              <th style="padding:0.6rem 0.8rem;text-align:center;">Riesgo acumulado (Σ prob.)</th>
+              <th style="padding:0.6rem 0.8rem;text-align:left;">Recomendación</th>
+            </tr>
+          </thead>
+          <tbody>{filas_html}</tbody>
+        </table>
+        """, unsafe_allow_html=True)
+
+        with st.expander("¿Cómo se calcula esto?"):
+            st.markdown("""
+- **Riesgo acumulado** = suma de las probabilidades individuales de inasistencia
+  de todos los pacientes agendados en ese bloque horario. Matemáticamente
+  representa el *número esperado de pacientes que van a faltar* en ese bloque.
+- Si el riesgo acumulado es **≥ 1**, estadísticamente se espera que al menos un
+  cupo quede vacío, por lo que se recomienda habilitar **un cupo adicional**
+  de sobreventa en ese horario.
+- Un bloque que **ya excede la capacidad** definida (más pacientes agendados
+  que cupos normales) se marca en rojo — ahí ya no se recomienda seguir
+  sumando citas, para no saturar al médico si todos llegan.
+            """)
 
 # ──────────────────────────────────────────────────────────────────
 # FOOTER
