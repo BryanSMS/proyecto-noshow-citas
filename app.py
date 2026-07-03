@@ -165,6 +165,48 @@ def predecir_pacientes(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 # ──────────────────────────────────────────────────────────────────
+# RF05 — AUDITORÍA Y REGISTRO DE RECLASIFICACIÓN MANUAL
+# Persistido en un archivo CSV (data/ediciones_manuales.csv), no en
+# session_state, porque este último se borra con cada recarga de
+# página (F5) — confirmado en la documentación oficial de Streamlit.
+# Un archivo en disco sí sobrevive a recargas y reinicios de la app.
+# ──────────────────────────────────────────────────────────────────
+import os
+from datetime import datetime
+
+RUTA_EDICIONES = os.path.join("data", "ediciones_manuales.csv")
+COLS_EDICIONES = ["Timestamp", "PacienteID", "Nombre", "EstadoAnterior", "EstadoNuevo", "Observacion"]
+
+def cargar_ediciones() -> pd.DataFrame:
+    if os.path.exists(RUTA_EDICIONES):
+        return pd.read_csv(RUTA_EDICIONES)
+    return pd.DataFrame(columns=COLS_EDICIONES)
+
+def estado_vigente_por_paciente(ediciones: pd.DataFrame) -> dict:
+    """Devuelve {PacienteID: EstadoNuevo} tomando SOLO el cambio más reciente
+    de cada paciente (si un paciente tiene varios registros de auditoría,
+    el estado vigente es el último, no todos)."""
+    if ediciones.empty:
+        return {}
+    ultimos = ediciones.sort_values("Timestamp").groupby("PacienteID").tail(1)
+    return dict(zip(ultimos["PacienteID"], ultimos["EstadoNuevo"]))
+
+def guardar_edicion(paciente_id: str, nombre: str, estado_anterior: str,
+                     estado_nuevo: str, observacion: str) -> None:
+    os.makedirs("data", exist_ok=True)
+    ediciones = cargar_ediciones()
+    nueva_fila = pd.DataFrame([{
+        "Timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "PacienteID": paciente_id,
+        "Nombre": nombre,
+        "EstadoAnterior": estado_anterior,
+        "EstadoNuevo": estado_nuevo,
+        "Observacion": observacion,
+    }])
+    ediciones = pd.concat([ediciones, nueva_fila], ignore_index=True)
+    ediciones.to_csv(RUTA_EDICIONES, index=False)
+
+# ──────────────────────────────────────────────────────────────────
 # HEADER GLOBAL
 # ──────────────────────────────────────────────────────────────────
 st.markdown("""
@@ -336,15 +378,32 @@ Si no subes ningún archivo, se carga automáticamente `data/agenda_ejemplo.csv`
 
             with st.spinner("Calculando riesgo para cada paciente..."):
                 df_pred = predecir_pacientes(df_raw)
+
+                # RF05: aplicar el estado vigente (Cancelada/Reprogramada) de
+                # cada paciente, leído del archivo de auditoría persistente.
+                ediciones = cargar_ediciones()
+                estados   = estado_vigente_por_paciente(ediciones)
+                df_pred["EstadoManual"] = df_pred["PacienteID"].map(estados).fillna("Sin cambios")
+
                 st.session_state["df_pred_agenda"] = df_pred
 
-            # ── Tarjetas de resumen ──
-            n_alto  = (df_pred["NivelRiesgo"] == "ALTO").sum()
-            n_medio = (df_pred["NivelRiesgo"] == "MEDIO").sum()
-            n_bajo  = (df_pred["NivelRiesgo"] == "BAJO").sum()
-            n_total = len(df_pred)
+            # Pacientes "activos": excluye Cancelada/Reprogramada de las
+            # tarjetas de resumen, la exportación y el cálculo de overbooking,
+            # porque esos cupos ya no representan una cita real pendiente.
+            df_activos = df_pred[~df_pred["EstadoManual"].isin(["Cancelada", "Reprogramada"])]
 
-            st.markdown(f"**{n_total} pacientes · {date.today().strftime('%d/%m/%Y')}**")
+            # ── Tarjetas de resumen (solo pacientes activos) ──
+            n_alto  = (df_activos["NivelRiesgo"] == "ALTO").sum()
+            n_medio = (df_activos["NivelRiesgo"] == "MEDIO").sum()
+            n_bajo  = (df_activos["NivelRiesgo"] == "BAJO").sum()
+            n_total = len(df_pred)
+            n_inactivos = len(df_pred) - len(df_activos)
+
+            st.markdown(
+                f"**{n_total} pacientes · {date.today().strftime('%d/%m/%Y')}**"
+                + (f" &nbsp;·&nbsp; {n_inactivos} cancelados/reprogramados (excluidos del cálculo)"
+                   if n_inactivos > 0 else "")
+            )
             mc1, mc2, mc3 = st.columns(3)
             with mc1:
                 st.markdown(f'<div class="summary-card card-alto">{n_alto}<div class="card-label">🔴 Alto riesgo</div></div>', unsafe_allow_html=True)
@@ -379,8 +438,16 @@ Si no subes ningún archivo, se carga automáticamente `data/agenda_ejemplo.csv`
             filas_html = ""
             for _, f in df_vista.iterrows():
                 nv = f["NivelRiesgo"]
+                estado_manual = f["EstadoManual"]
+                inactivo = estado_manual in ("Cancelada", "Reprogramada")
+                bg = "#f1f5f9" if inactivo else color_fila[nv]
+                estilo_texto = "text-decoration:line-through;color:#94a3b8;" if inactivo else ""
+                etiqueta_estado = (
+                    f'<span style="font-size:0.72rem;font-weight:700;color:#dc2626;">{estado_manual.upper()}</span>'
+                    if inactivo else '<span style="color:#94a3b8;font-size:0.78rem;">Sin cambios</span>'
+                )
                 filas_html += f"""
-                <tr style="background:{color_fila[nv]};">
+                <tr style="background:{bg};{estilo_texto}">
                   <td style="padding:0.5rem 0.8rem;font-weight:600;">{f['HoraCita']}</td>
                   <td style="padding:0.5rem 0.8rem;color:#64748b;font-size:0.82rem;">{f['PacienteID']}</td>
                   <td style="padding:0.5rem 0.8rem;">{f['Nombre']}</td>
@@ -388,6 +455,7 @@ Si no subes ningún archivo, se carga automáticamente `data/agenda_ejemplo.csv`
                   <td style="padding:0.5rem 0.8rem;font-size:0.82rem;">{f['Barrio']}</td>
                   <td style="padding:0.5rem 0.8rem;text-align:center;font-weight:700;">{f['Probabilidad']*100:.1f}%</td>
                   <td style="padding:0.5rem 0.8rem;text-align:center;">{badge_html[nv]}</td>
+                  <td style="padding:0.5rem 0.8rem;text-align:center;">{etiqueta_estado}</td>
                 </tr>"""
 
             st.markdown(f"""
@@ -401,17 +469,74 @@ Si no subes ningún archivo, se carga automáticamente `data/agenda_ejemplo.csv`
                   <th style="padding:0.6rem 0.8rem;text-align:left;">Barrio</th>
                   <th style="padding:0.6rem 0.8rem;text-align:center;">Riesgo %</th>
                   <th style="padding:0.6rem 0.8rem;text-align:center;">Nivel</th>
+                  <th style="padding:0.6rem 0.8rem;text-align:center;">Estado</th>
                 </tr>
               </thead>
               <tbody>{filas_html}</tbody>
             </table>
             """, unsafe_allow_html=True)
 
+            # ══════════════════════════════════════════════════════
+            # RF05 — RECLASIFICACIÓN MANUAL DE UNA CITA
+            # ══════════════════════════════════════════════════════
+            st.markdown("---")
+            with st.container(border=True):
+                st.markdown("**✏️ Registrar confirmación telefónica (RF05)**")
+                st.caption(
+                    "Si el paciente llamó para cancelar o reprogramar, regístralo aquí. "
+                    "El cambio se guarda de inmediato y afecta el cálculo de riesgo y "
+                    "de overbooking en tiempo real, incluso si recargas la página."
+                )
+
+                opciones_pac = [f"{r.PacienteID} — {r.Nombre}" for r in df_pred.itertuples()]
+                col_e1, col_e2 = st.columns([2, 1])
+                with col_e1:
+                    seleccion = st.selectbox("Paciente", opciones_pac, key="rf05_paciente")
+                with col_e2:
+                    nuevo_estado = st.selectbox(
+                        "Nuevo estado",
+                        ["Cancelada", "Reprogramada", "Sin cambios (revertir)"],
+                        key="rf05_estado"
+                    )
+                observacion = st.text_input(
+                    "Observación (opcional)", placeholder="Ej. reprogramó para la próxima semana",
+                    key="rf05_obs"
+                )
+
+                if st.button("Guardar cambio", key="rf05_guardar"):
+                    pid_sel = seleccion.split(" — ")[0]
+                    nombre_sel = seleccion.split(" — ", 1)[1]
+                    estado_anterior = df_pred.loc[df_pred["PacienteID"] == pid_sel, "EstadoManual"].iloc[0]
+                    estado_final = "Sin cambios" if nuevo_estado.startswith("Sin cambios") else nuevo_estado
+                    guardar_edicion(pid_sel, nombre_sel, estado_anterior, estado_final, observacion)
+                    st.success(f"Registrado: {nombre_sel} → {estado_final}")
+                    st.rerun()
+
+                # ── Historial de auditoría ──
+                ediciones_actuales = cargar_ediciones()
+                if not ediciones_actuales.empty:
+                    with st.expander(f"📜 Historial de cambios ({len(ediciones_actuales)} registros)"):
+                        st.dataframe(
+                            ediciones_actuales.sort_values("Timestamp", ascending=False),
+                            use_container_width=True, hide_index=True
+                        )
+                        st.markdown("")
+                        confirmar_reinicio = st.checkbox(
+                            "Confirmo que quiero borrar TODO el historial de cambios de hoy",
+                            key="rf05_confirmar_reinicio"
+                        )
+                        if st.button("🔄 Reiniciar ediciones del día", key="rf05_reiniciar",
+                                     disabled=not confirmar_reinicio):
+                            if os.path.exists(RUTA_EDICIONES):
+                                os.remove(RUTA_EDICIONES)
+                            st.success("Historial de ediciones reiniciado.")
+                            st.rerun()
+
             # ── Exportar la lista actualmente visible (respeta el filtro elegido arriba) ──
             st.markdown("")
             if len(df_vista) > 0:
                 df_exportar = df_vista[
-                    ["HoraCita","PacienteID","Nombre","Edad","Barrio","Probabilidad","NivelRiesgo"]
+                    ["HoraCita","PacienteID","Nombre","Edad","Barrio","Probabilidad","NivelRiesgo","EstadoManual"]
                 ].copy()
                 df_exportar["Probabilidad"] = df_exportar["Probabilidad"].apply(lambda p: f"{p*100:.1f}%")
                 etiqueta_filtro = "todos los niveles" if nivel_filtro is None else f"nivel {nivel_filtro}"
@@ -463,8 +588,16 @@ with tab3:
         st.markdown("---")
 
         # ── Agrupar por bloque horario ──
+        # RF05: los pacientes marcados como Cancelada/Reprogramada se excluyen,
+        # porque ese cupo ya no representa una cita real pendiente — así el
+        # indicador de overbooking se recalcula en tiempo real ante cada cambio.
+        if "EstadoManual" in df_pred.columns:
+            df_para_bloques = df_pred[~df_pred["EstadoManual"].isin(["Cancelada", "Reprogramada"])]
+        else:
+            df_para_bloques = df_pred
+
         resumen = (
-            df_pred.groupby("HoraCita")
+            df_para_bloques.groupby("HoraCita")
             .agg(
                 PacientesAgendados=("PacienteID", "count"),
                 RiesgoAcumulado=("Probabilidad", "sum"),
