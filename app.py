@@ -329,6 +329,7 @@ El archivo debe tener exactamente estas columnas (sensibles a mayúsculas):
 | `Alcoholism` | 0 / 1 | 0 |
 | `Discapacidad` | 0 – 4 | 0 |
 | `SMS_received` | 0 / 1 | 1 |
+| `Telefono` | texto (opcional) | 999-123-456 |
 
 Si no subes ningún archivo, se carga automáticamente `data/agenda_ejemplo.csv` del repositorio.
         """)
@@ -366,6 +367,11 @@ Si no subes ningún archivo, se carga automáticamente `data/agenda_ejemplo.csv`
             if faltantes:
                 st.error(f"Columnas faltantes en el CSV: {faltantes}")
                 st.stop()
+
+            # Telefono es opcional: se usa para la lista de priorización (RF04),
+            # pero un CSV sin esta columna igual debe poder procesarse.
+            if "Telefono" not in df_raw.columns:
+                df_raw["Telefono"] = "No registrado"
 
             barrios_invalidos = set(df_raw["Barrio"]) - set(le_barrios.classes_)
             if barrios_invalidos:
@@ -422,7 +428,14 @@ Si no subes ningún archivo, se carga automáticamente `data/agenda_ejemplo.csv`
             )
             mapa = {"Todos": None, "🔴 Solo ALTO": "ALTO", "🟡 Solo MEDIO": "MEDIO", "🟢 Solo BAJO": "BAJO"}
             nivel_filtro = mapa[filtro]
-            df_vista = df_pred if nivel_filtro is None else df_pred[df_pred["NivelRiesgo"] == nivel_filtro]
+            if nivel_filtro is None:
+                # "Todos" muestra también cancelados/reprogramados (tachados) para
+                # que el personal conserve visibilidad completa del día.
+                df_vista = df_pred
+            else:
+                # Un nivel específico solo muestra pacientes activos, para ser
+                # consistente con el conteo de las tarjetas de resumen de arriba.
+                df_vista = df_activos[df_activos["NivelRiesgo"] == nivel_filtro]
             # RF02 exige consolidar CRONOLÓGICAMENTE las citas del día; el color de
             # cada fila ya resalta el riesgo, así que el orden se mantiene por hora.
             df_vista = df_vista.sort_values("HoraCita").reset_index(drop=True)
@@ -477,6 +490,50 @@ Si no subes ningún archivo, se carga automáticamente `data/agenda_ejemplo.csv`
             """, unsafe_allow_html=True)
 
             # ══════════════════════════════════════════════════════
+            # RF04 — LISTA DE PRIORIZACIÓN PARA CAMPAÑA DE CONFIRMACIÓN
+            # (vista separada de la agenda cronológica de RF02: aquí el
+            # orden es por PROBABILIDAD descendente, no por hora, porque
+            # el objetivo es decidir a quién llamar/enviar SMS primero)
+            # ══════════════════════════════════════════════════════
+            st.markdown("---")
+            st.markdown("#### 📞 Lista de priorización — Campaña de confirmación (RF04)")
+            st.caption(
+                "Pacientes activos ordenados de mayor a menor riesgo, listos para "
+                "exportar o contactar por SMS/llamada. Excluye a los ya cancelados "
+                "o reprogramados."
+            )
+
+            umbral_pct = st.slider(
+                "Mostrar pacientes con riesgo mayor o igual a:",
+                min_value=0, max_value=100, value=50, step=5,
+                key="rf04_umbral", format="%d%%"
+            )
+            umbral = umbral_pct / 100.0
+
+            df_prioridad = df_activos[df_activos["Probabilidad"] >= umbral].sort_values(
+                "Probabilidad", ascending=False
+            ).reset_index(drop=True)
+
+            if len(df_prioridad) == 0:
+                st.info("Ningún paciente activo supera ese umbral de riesgo.")
+            else:
+                tabla_prioridad = df_prioridad[
+                    ["PacienteID", "Nombre", "Telefono", "HoraCita", "Probabilidad", "NivelRiesgo"]
+                ].copy()
+                tabla_prioridad["Probabilidad"] = tabla_prioridad["Probabilidad"].apply(
+                    lambda p: f"{p*100:.1f}%"
+                )
+                st.dataframe(tabla_prioridad, use_container_width=True, hide_index=True)
+
+                st.download_button(
+                    label=f"📞 Descargar lista de priorización — {len(df_prioridad)} pacientes (CSV)",
+                    data=tabla_prioridad.to_csv(index=False).encode("utf-8"),
+                    file_name=f"prioridad_confirmacion_{date.today().isoformat()}.csv",
+                    mime="text/csv",
+                    key="dl_prioridad"
+                )
+
+            # ══════════════════════════════════════════════════════
             # RF05 — RECLASIFICACIÓN MANUAL DE UNA CITA
             # ══════════════════════════════════════════════════════
             st.markdown("---")
@@ -492,25 +549,48 @@ Si no subes ningún archivo, se carga automáticamente `data/agenda_ejemplo.csv`
                 col_e1, col_e2 = st.columns([2, 1])
                 with col_e1:
                     seleccion = st.selectbox("Paciente", opciones_pac, key="rf05_paciente")
+
+                pid_actual = seleccion.split(" — ")[0]
+                estado_actual_pid = df_pred.loc[
+                    df_pred["PacienteID"] == pid_actual, "EstadoManual"
+                ].iloc[0]
+
+                opciones_estado = ["Sin cambios (revertir)", "Cancelada", "Reprogramada"]
+                mapa_estado_a_opcion = {
+                    "Sin cambios": "Sin cambios (revertir)",
+                    "Cancelada": "Cancelada",
+                    "Reprogramada": "Reprogramada",
+                }
+                indice_default = opciones_estado.index(
+                    mapa_estado_a_opcion.get(estado_actual_pid, "Sin cambios (revertir)")
+                )
+
                 with col_e2:
                     nuevo_estado = st.selectbox(
-                        "Nuevo estado",
-                        ["Cancelada", "Reprogramada", "Sin cambios (revertir)"],
-                        key="rf05_estado"
+                        "Nuevo estado", opciones_estado,
+                        index=indice_default, key="rf05_estado"
                     )
+                st.caption(f"Estado actual de {seleccion.split(' — ',1)[1]}: **{estado_actual_pid}**")
+
                 observacion = st.text_input(
                     "Observación (opcional)", placeholder="Ej. reprogramó para la próxima semana",
                     key="rf05_obs"
                 )
 
                 if st.button("Guardar cambio", key="rf05_guardar"):
-                    pid_sel = seleccion.split(" — ")[0]
+                    pid_sel = pid_actual
                     nombre_sel = seleccion.split(" — ", 1)[1]
-                    estado_anterior = df_pred.loc[df_pred["PacienteID"] == pid_sel, "EstadoManual"].iloc[0]
                     estado_final = "Sin cambios" if nuevo_estado.startswith("Sin cambios") else nuevo_estado
-                    guardar_edicion(pid_sel, nombre_sel, estado_anterior, estado_final, observacion)
-                    st.success(f"Registrado: {nombre_sel} → {estado_final}")
-                    st.rerun()
+
+                    if estado_final == estado_actual_pid:
+                        st.warning(
+                            f"{nombre_sel} ya está en estado **{estado_actual_pid}** — "
+                            "no hay ningún cambio que registrar."
+                        )
+                    else:
+                        guardar_edicion(pid_sel, nombre_sel, estado_actual_pid, estado_final, observacion)
+                        st.success(f"Registrado: {nombre_sel} → {estado_final}")
+                        st.rerun()
 
                 # ── Historial de auditoría ──
                 ediciones_actuales = cargar_ediciones()
