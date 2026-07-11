@@ -4,3 +4,4 @@ __pycache__/
 .ipynb_checkpoints/
 .DS_Storels
 data/ediciones_manuales.csvS
+.streamlit/
