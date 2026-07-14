@@ -99,12 +99,12 @@ h1, h2, h3, h4, h5, h6 {
    TARJETAS RESUMEN (alto / medio / bajo)
    ──────────────────────────────────────────────────────────── */
 .summary-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
     border-radius: var(--radio-tarjeta);
-    padding: 1rem 1.2rem;
+    padding: 1.1rem 1.2rem;
     text-align: center;
-    font-weight: 700;
-    font-size: 1.5rem;
-    font-family: var(--font-mono);
     margin-bottom: 0.5rem;
     box-shadow: var(--sombra-suave);
     transition: transform var(--transicion), box-shadow var(--transicion);
@@ -113,12 +113,23 @@ h1, h2, h3, h4, h5, h6 {
     transform: translateY(-2px);
     box-shadow: var(--sombra-hover);
 }
-.card-alto  { background: #fee2e2; color: #991b1b; border-left: 5px solid var(--color-error); }
-.card-medio { background: #fef9c3; color: #854d0e; border-left: 5px solid var(--color-advertencia); }
-.card-bajo  { background: #dcfce7; color: #166534; border-left: 5px solid var(--color-exito); }
+.card-icon {
+    font-size: 1.25rem;
+    line-height: 1;
+    margin-bottom: 0.35rem;
+}
+.card-value {
+    font-weight: 700;
+    font-size: 1.7rem;
+    font-family: var(--font-mono);
+    line-height: 1.1;
+}
+.card-alto  { background: #fee2e2; color: #991b1b; border-top: 4px solid var(--color-error); }
+.card-medio { background: #fef9c3; color: #854d0e; border-top: 4px solid var(--color-advertencia); }
+.card-bajo  { background: #dcfce7; color: #166534; border-top: 4px solid var(--color-exito); }
 .card-label {
     font-size: 0.72rem; font-weight: 600; letter-spacing: 0.05em;
-    text-transform: uppercase; margin-top: 0.2rem;
+    text-transform: uppercase; margin-top: 0.3rem;
     font-family: var(--font-sans);
 }
 
@@ -161,6 +172,26 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 /* ────────────────────────────────────────────────────────────
+   ETIQUETA DE SECCIÓN (dentro de st.container(border=True))
+   Reutiliza el lenguaje tipográfico de .form-section h4, sin
+   requerir el div wrapper (el borde ya lo da el container nativo).
+   ──────────────────────────────────────────────────────────── */
+.section-label {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    margin: 0 0 0.9rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid var(--color-borde);
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: var(--color-texto-secundario);
+    font-weight: 600;
+    font-family: var(--font-sans);
+}
+
+/* ────────────────────────────────────────────────────────────
    RESULT-BOX (predicción individual)
    ──────────────────────────────────────────────────────────── */
 .result-box {
@@ -179,6 +210,18 @@ h1, h2, h3, h4, h5, h6 {
 .result-medio { background: #fef9c3; border-left: 6px solid var(--color-advertencia); }
 .result-bajo  { background: #dcfce7; border-left: 6px solid var(--color-exito); }
 .result-title { font-size: 1.05rem; font-weight: 700; margin: 0 0 0.3rem; font-family: var(--font-sans); }
+.result-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.6rem;
+    height: 1.6rem;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.55);
+    margin-right: 0.35rem;
+    font-size: 0.95rem;
+    vertical-align: middle;
+}
 .result-pct   { font-size: 2.2rem; font-weight: 800; margin: 0; font-family: var(--font-mono); }
 .result-msg   { font-size: 0.83rem; margin: 0.6rem 0 0; opacity: 0.85; font-family: var(--font-sans); }
 
@@ -190,6 +233,35 @@ h1, h2, h3, h4, h5, h6 {
     margin: 0.8rem 0 0.3rem; overflow: hidden;
 }
 .prog-bar-fill { height: 100%; border-radius: 999px; transition: width 0.4s ease; }
+
+/* ────────────────────────────────────────────────────────────
+   ALERTAS NATIVAS (st.info / st.warning / st.error / st.success)
+   ──────────────────────────────────────────────────────────── */
+[data-testid="stAlert"] {
+    border-radius: var(--radio-tarjeta);
+    box-shadow: var(--sombra-suave);
+    font-family: var(--font-sans);
+}
+
+/* ────────────────────────────────────────────────────────────
+   ESTADO VACÍO
+   ──────────────────────────────────────────────────────────── */
+.empty-state {
+    text-align: center;
+    padding: 3rem 1rem;
+    background: var(--fondo-tarjeta);
+    border: 1px dashed var(--color-borde);
+    border-radius: var(--radio-tarjeta);
+}
+.empty-state .empty-icon  { font-size: 3rem; margin-bottom: 1rem; }
+.empty-state .empty-title {
+    font-size: 1rem; font-weight: 600; color: var(--color-titulo);
+    margin: 0 0 0.4rem; font-family: var(--font-sans);
+}
+.empty-state .empty-desc {
+    font-size: 0.85rem; margin: 0; color: var(--color-texto-secundario);
+    font-family: var(--font-sans);
+}
 
 /* ────────────────────────────────────────────────────────────
    FOOTER
@@ -460,14 +532,14 @@ with tab1:
 
     with col_izq:
         with st.container(border=True):
-            st.markdown("**Datos del paciente**")
+            st.markdown('<div class="section-label">🧍 Datos del paciente</div>', unsafe_allow_html=True)
             genero = st.selectbox("Género", ["Femenino", "Masculino"], key="ind_genero")
             edad   = st.number_input("Edad", min_value=0, max_value=115, value=35, key="ind_edad")
             barrio = st.selectbox("Barrio / Distrito", sorted(le_barrios.classes_), key="ind_barrio")
             beca   = st.checkbox("Recibe beca social (Scholarship)", key="ind_beca")
 
         with st.container(border=True):
-            st.markdown("**Condiciones de salud**")
+            st.markdown('<div class="section-label">🩺 Condiciones de salud</div>', unsafe_allow_html=True)
             c1, c2 = st.columns(2)
             with c1:
                 hiper   = st.checkbox("Hipertensión", key="ind_hiper")
@@ -478,7 +550,7 @@ with tab1:
 
     with col_der:
         with st.container(border=True):
-            st.markdown("**Datos de la cita**")
+            st.markdown('<div class="section-label">📅 Datos de la cita</div>', unsafe_allow_html=True)
             dia_agenda = st.date_input("Fecha de agendamiento",   value=date.today(), key="ind_agenda")
             dia_cita   = st.date_input("Fecha de la cita médica", value=date.today(), key="ind_cita")
             sms        = st.checkbox("Recibirá recordatorio SMS", value=True, key="ind_sms")
@@ -521,7 +593,7 @@ with tab1:
 
             st.markdown(f"""
             <div class="result-box {clase}">
-              <p class="result-title">{icono} Nivel de riesgo: <strong>{nivel}</strong></p>
+              <p class="result-title"><span class="result-icon">{icono}</span>Nivel de riesgo: <strong>{nivel}</strong></p>
               <p class="result-pct">{pct}</p>
               <div class="prog-bar-bg">
                 <div class="prog-bar-fill" style="width:{min(prob*100,100):.1f}%; background:{color};"></div>
@@ -637,11 +709,11 @@ Si no subes ningún archivo, se carga automáticamente `data/agenda_ejemplo.csv`
             )
             mc1, mc2, mc3 = st.columns(3)
             with mc1:
-                st.markdown(f'<div class="summary-card card-alto">{n_alto}<div class="card-label">🔴 Alto riesgo</div></div>', unsafe_allow_html=True)
+                st.markdown(f'<div class="summary-card card-alto"><div class="card-icon">🔴</div><div class="card-value">{n_alto}</div><div class="card-label">Alto riesgo</div></div>', unsafe_allow_html=True)
             with mc2:
-                st.markdown(f'<div class="summary-card card-medio">{n_medio}<div class="card-label">🟡 Riesgo medio</div></div>', unsafe_allow_html=True)
+                st.markdown(f'<div class="summary-card card-medio"><div class="card-icon">🟡</div><div class="card-value">{n_medio}</div><div class="card-label">Riesgo medio</div></div>', unsafe_allow_html=True)
             with mc3:
-                st.markdown(f'<div class="summary-card card-bajo">{n_bajo}<div class="card-label">🟢 Bajo riesgo</div></div>', unsafe_allow_html=True)
+                st.markdown(f'<div class="summary-card card-bajo"><div class="card-icon">🟢</div><div class="card-value">{n_bajo}</div><div class="card-label">Bajo riesgo</div></div>', unsafe_allow_html=True)
 
             st.markdown("---")
 
@@ -746,7 +818,7 @@ Si no subes ningún archivo, se carga automáticamente `data/agenda_ejemplo.csv`
 
             st.markdown("---")
             with st.container(border=True):
-                st.markdown("**✏️ Registrar confirmación telefónica (RF05)**")
+                st.markdown('<div class="section-label">✏️ Registrar confirmación telefónica </div>', unsafe_allow_html=True)
                 st.caption(
                     "Si el paciente llamó para cancelar o reprogramar, regístralo aquí. "
                     "El cambio se guarda de inmediato y afecta el cálculo de riesgo y "
@@ -840,24 +912,22 @@ Si no subes ningún archivo, se carga automáticamente `data/agenda_ejemplo.csv`
 # PESTAÑA 3 — RF03: RECOMENDACIÓN DE OVERBOOKING
 # ══════════════════════════════════════════════════════════════════
 with tab3:
-    st.markdown(
-        "##### Analiza la acumulación de riesgo por bloque horario y recomienda "
-        "dónde conviene habilitar un cupo de sobreventa (overbooking)."
-    )
+    st.subheader("🛏️ Análisis de Overbooking")
 
     if "df_pred_agenda" not in st.session_state:
-        st.markdown("""
-        <div style="text-align:center;padding:3rem 1rem;color:#94a3b8;">
-          <div style="font-size:3rem;margin-bottom:1rem;">🛏️</div>
-          <p style="font-size:1rem;font-weight:600;color:#64748b;">
-            Aún no hay una agenda cargada
-          </p>
-          <p style="font-size:0.85rem;">
-            Ve primero a la pestaña <strong>Agenda del día</strong> para cargar o
-            calcular el riesgo de los pacientes. Este panel reutiliza ese cálculo.
-          </p>
-        </div>
-        """, unsafe_allow_html=True)
+        st.markdown(
+            """
+            <div class="empty-state">
+              <div class="empty-icon">🛏️</div>
+              <p class="empty-title">Aún no hay una agenda cargada</p>
+              <p class="empty-desc">
+                Ve primero a la pestaña <strong>Agenda del día</strong> para cargar o
+                calcular el riesgo de los pacientes. Este panel reutiliza ese cálculo.
+              </p>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
     else:
         df_pred = st.session_state["df_pred_agenda"]
 
