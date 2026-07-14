@@ -25,34 +25,106 @@ st.set_page_config(
 # ──────────────────────────────────────────────────────────────────
 # ESTILOS GLOBALES
 # ──────────────────────────────────────────────────────────────────
+
 st.markdown("""
 <style>
-html, body, [class*="css"] { font-family: 'Segoe UI', sans-serif; }
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600;700&display=swap');
 
+/* ────────────────────────────────────────────────────────────
+   VARIABLES CSS DEL SISTEMA DE DISEÑO
+   ──────────────────────────────────────────────────────────── */
+:root {
+    --font-sans: 'Inter', 'Segoe UI', system-ui, sans-serif;
+    --font-mono: 'JetBrains Mono', 'Consolas', 'Courier New', monospace;
+
+    --color-primario:   #1a3a5c;
+    --color-secundario: #2d6a9f;
+    --color-acento:     #2d6a9f;
+
+    --fondo-principal:  #f7f8fa;
+    --fondo-tarjeta:    #ffffff;
+    --color-borde:      #e2e8f0;
+
+    --color-titulo:            #0f172a;
+    --color-texto:             #334155;
+    --color-texto-secundario: #64748b;
+
+    --color-exito:       #22c55e;
+    --color-advertencia: #eab308;
+    --color-error:       #ef4444;
+
+    --radio-tarjeta: 10px;
+    --radio-boton:   8px;
+    --sombra-suave:  0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+    --sombra-hover:  0 4px 10px rgba(0,0,0,0.08), 0 2px 4px rgba(0,0,0,0.05);
+    --transicion:    150ms ease-out;
+}
+
+/* ────────────────────────────────────────────────────────────
+   TIPOGRAFÍA GENERAL Y FONDO CLARO
+   ──────────────────────────────────────────────────────────── */
+html, body {
+    font-family: var(--font-sans);
+    color: var(--color-texto);
+}
+
+[data-testid="stAppViewContainer"] {
+    background-color: var(--fondo-principal);
+    font-family: var(--font-sans);
+}
+
+h1, h2, h3, h4, h5, h6 {
+    color: var(--color-titulo);
+    font-family: var(--font-sans);
+}
+
+/* ────────────────────────────────────────────────────────────
+   HEADER
+   ──────────────────────────────────────────────────────────── */
 .app-header {
-    background: linear-gradient(135deg, #1a3a5c 0%, #2d6a9f 100%);
+    background: linear-gradient(135deg, var(--color-primario) 0%, var(--color-secundario) 100%);
     border-radius: 12px;
     padding: 1.4rem 2rem;
     margin-bottom: 1.5rem;
     color: white;
+    box-shadow: var(--sombra-suave);
 }
-.app-header h1 { margin: 0; font-size: 1.7rem; font-weight: 700; letter-spacing: -0.3px; }
-.app-header p  { margin: 0.3rem 0 0; font-size: 0.82rem; opacity: 0.8; }
+.app-header h1 {
+    margin: 0; font-size: 1.7rem; font-weight: 700; letter-spacing: -0.3px;
+    color: white; font-family: var(--font-sans);
+}
+.app-header p  { margin: 0.3rem 0 0; font-size: 0.82rem; opacity: 0.85; }
 
+/* ────────────────────────────────────────────────────────────
+   TARJETAS RESUMEN (alto / medio / bajo)
+   ──────────────────────────────────────────────────────────── */
 .summary-card {
-    border-radius: 10px;
+    border-radius: var(--radio-tarjeta);
     padding: 1rem 1.2rem;
     text-align: center;
     font-weight: 700;
     font-size: 1.5rem;
+    font-family: var(--font-mono);
     margin-bottom: 0.5rem;
+    box-shadow: var(--sombra-suave);
+    transition: transform var(--transicion), box-shadow var(--transicion);
 }
-.card-alto  { background: #fee2e2; color: #991b1b; border-left: 5px solid #ef4444; }
-.card-medio { background: #fef9c3; color: #854d0e; border-left: 5px solid #eab308; }
-.card-bajo  { background: #dcfce7; color: #166534; border-left: 5px solid #22c55e; }
-.card-label { font-size: 0.72rem; font-weight: 600; letter-spacing: 0.05em;
-              text-transform: uppercase; margin-top: 0.2rem; }
+.summary-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--sombra-hover);
+}
+.card-alto  { background: #fee2e2; color: #991b1b; border-left: 5px solid var(--color-error); }
+.card-medio { background: #fef9c3; color: #854d0e; border-left: 5px solid var(--color-advertencia); }
+.card-bajo  { background: #dcfce7; color: #166534; border-left: 5px solid var(--color-exito); }
+.card-label {
+    font-size: 0.72rem; font-weight: 600; letter-spacing: 0.05em;
+    text-transform: uppercase; margin-top: 0.2rem;
+    font-family: var(--font-sans);
+}
 
+/* ────────────────────────────────────────────────────────────
+   BADGES DE NIVEL DE RIESGO
+   ──────────────────────────────────────────────────────────── */
 .badge {
     display: inline-block;
     padding: 0.2rem 0.65rem;
@@ -61,50 +133,181 @@ html, body, [class*="css"] { font-family: 'Segoe UI', sans-serif; }
     font-weight: 700;
     letter-spacing: 0.06em;
     text-transform: uppercase;
+    font-family: var(--font-sans);
 }
 .badge-alto  { background: #fca5a5; color: #7f1d1d; }
 .badge-medio { background: #fde68a; color: #78350f; }
 .badge-bajo  { background: #86efac; color: #14532d; }
 
+/* ────────────────────────────────────────────────────────────
+   SECCIONES DE FORMULARIO
+   ──────────────────────────────────────────────────────────── */
 .form-section {
-    background: #f8fafc;
-    border: 1px solid #e2e8f0;
-    border-radius: 10px;
+    background: var(--fondo-tarjeta);
+    border: 1px solid var(--color-borde);
+    border-radius: var(--radio-tarjeta);
     padding: 1.2rem 1.5rem;
     margin-bottom: 1rem;
+    box-shadow: var(--sombra-suave);
 }
 .form-section h4 {
     margin: 0 0 0.8rem;
     font-size: 0.85rem;
     text-transform: uppercase;
     letter-spacing: 0.07em;
-    color: #64748b;
+    color: var(--color-texto-secundario);
     font-weight: 600;
+    font-family: var(--font-sans);
 }
 
-.result-box { border-radius: 12px; padding: 1.4rem 1.8rem; margin-top: 1rem; }
-.result-alto  { background: #fee2e2; border-left: 6px solid #ef4444; }
-.result-medio { background: #fef9c3; border-left: 6px solid #eab308; }
-.result-bajo  { background: #dcfce7; border-left: 6px solid #22c55e; }
-.result-title { font-size: 1.05rem; font-weight: 700; margin: 0 0 0.3rem; }
-.result-pct   { font-size: 2.2rem; font-weight: 800; margin: 0; }
-.result-msg   { font-size: 0.83rem; margin: 0.6rem 0 0; opacity: 0.85; }
+/* ────────────────────────────────────────────────────────────
+   RESULT-BOX (predicción individual)
+   ──────────────────────────────────────────────────────────── */
+.result-box {
+    border-radius: 12px;
+    padding: 1.4rem 1.8rem;
+    margin-top: 1rem;
+    box-shadow: var(--sombra-suave);
+    opacity: 0;
+    animation: aparecer 250ms ease-in-out forwards;
+}
+@keyframes aparecer {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+}
+.result-alto  { background: #fee2e2; border-left: 6px solid var(--color-error); }
+.result-medio { background: #fef9c3; border-left: 6px solid var(--color-advertencia); }
+.result-bajo  { background: #dcfce7; border-left: 6px solid var(--color-exito); }
+.result-title { font-size: 1.05rem; font-weight: 700; margin: 0 0 0.3rem; font-family: var(--font-sans); }
+.result-pct   { font-size: 2.2rem; font-weight: 800; margin: 0; font-family: var(--font-mono); }
+.result-msg   { font-size: 0.83rem; margin: 0.6rem 0 0; opacity: 0.85; font-family: var(--font-sans); }
 
+/* ────────────────────────────────────────────────────────────
+   BARRA DE PROGRESO
+   ──────────────────────────────────────────────────────────── */
 .prog-bar-bg {
-    background: #e2e8f0; border-radius: 999px; height: 10px;
+    background: var(--color-borde); border-radius: 999px; height: 10px;
     margin: 0.8rem 0 0.3rem; overflow: hidden;
 }
 .prog-bar-fill { height: 100%; border-radius: 999px; transition: width 0.4s ease; }
 
+/* ────────────────────────────────────────────────────────────
+   FOOTER
+   ──────────────────────────────────────────────────────────── */
 .footer {
-    font-size: 0.73rem; color: #94a3b8;
+    font-size: 0.73rem; color: var(--color-texto-secundario);
     text-align: center; margin-top: 2.5rem; padding-top: 1rem;
-    border-top: 1px solid #e2e8f0;
+    border-top: 1px solid var(--color-borde);
+    font-family: var(--font-sans);
+}
+
+/* ────────────────────────────────────────────────────────────
+   TABS — indicador de tab activo
+   Selectores estables vía data-baseweb / ARIA, no .css-xxxx
+   ──────────────────────────────────────────────────────────── */
+[data-testid="stTabs"] [data-baseweb="tab-list"] {
+    gap: 0.5rem;
+    border-bottom: 1px solid var(--color-borde);
+}
+[data-testid="stTabs"] [data-baseweb="tab"] {
+    font-family: var(--font-sans);
+    font-weight: 500;
+    color: var(--color-texto-secundario);
+    transition: color var(--transicion), border-color var(--transicion);
+}
+[data-testid="stTabs"] [data-baseweb="tab"]:hover {
+    color: var(--color-acento);
+}
+[data-testid="stTabs"] [data-baseweb="tab"][aria-selected="true"] {
+    color: var(--color-primario);
+    font-weight: 700;
+    border-bottom: 3px solid var(--color-acento);
+}
+
+/* ────────────────────────────────────────────────────────────
+   BOTONES NATIVOS DE STREAMLIT
+   ──────────────────────────────────────────────────────────── */
+[data-testid="stButton"] button {
+    font-family: var(--font-sans);
+    font-weight: 600;
+    border-radius: var(--radio-boton);
+    transition: transform var(--transicion), box-shadow var(--transicion), filter var(--transicion);
+}
+[data-testid="stButton"] button:hover {
+    transform: translateY(-1px);
+    box-shadow: var(--sombra-suave);
+    filter: brightness(0.97);
+}
+[data-testid="stButton"] button:active {
+    transform: translateY(0);
+}
+[data-testid="stButton"] button:focus-visible {
+    outline: 2px solid var(--color-acento);
+    outline-offset: 2px;
+}
+[data-testid="stButton"] button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* ────────────────────────────────────────────────────────────
+   INPUTS NATIVOS (texto, número, fecha, select)
+   ──────────────────────────────────────────────────────────── */
+[data-testid="stTextInput"] input,
+[data-testid="stNumberInput"] input,
+[data-testid="stDateInput"] input {
+    font-family: var(--font-sans);
+    border-radius: var(--radio-boton);
+    border: 1px solid var(--color-borde);
+    transition: border-color var(--transicion), box-shadow var(--transicion);
+}
+[data-testid="stTextInput"] input:focus,
+[data-testid="stNumberInput"] input:focus,
+[data-testid="stDateInput"] input:focus {
+    border-color: var(--color-acento);
+    box-shadow: 0 0 0 2px rgba(45, 106, 159, 0.15);
+}
+[data-testid="stSelectbox"] [data-baseweb="select"] {
+    font-family: var(--font-sans);
+    border-radius: var(--radio-boton);
+}
+
+/* Checkbox y slider: color de acento vía atributos ARIA/nativos estables */
+input[type="checkbox"] {
+    accent-color: var(--color-acento);
+}
+[data-testid="stSlider"] div[role="slider"] {
+    background-color: var(--color-acento) !important;
+    border-color: var(--color-acento) !important;
+}
+
+/* Tarjetas nativas (st.container(border=True)) — mismo lenguaje visual */
+[data-testid="stVerticalBlockBorderWrapper"] {
+    border-radius: var(--radio-tarjeta) !important;
+    box-shadow: var(--sombra-suave);
 }
 
 /* Oculta el icono de enlace (#) que Streamlit agrega automáticamente
    a los encabezados — no aporta nada útil dentro de la app. */
 [data-testid="stHeaderActionElements"] { display: none; }
+
+/* ────────────────────────────────────────────────────────────
+   ACCESIBILIDAD — prefers-reduced-motion
+   ──────────────────────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+    .summary-card,
+    .result-box,
+    [data-testid="stButton"] button,
+    [data-testid="stTabs"] [data-baseweb="tab"],
+    [data-testid="stTextInput"] input,
+    [data-testid="stNumberInput"] input,
+    [data-testid="stDateInput"] input {
+        transition: none !important;
+        animation: none !important;
+        transform: none !important;
+    }
+    .result-box { opacity: 1; }
+}
 </style>
 """, unsafe_allow_html=True)
 
