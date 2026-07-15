@@ -267,9 +267,12 @@ h1, h2, h3, h4, h5, h6 {
    FOOTER
    ──────────────────────────────────────────────────────────── */
 .footer {
-    font-size: 0.73rem; color: var(--color-texto-secundario);
-    text-align: center; margin-top: 2.5rem; padding-top: 1rem;
-    border-top: 1px solid var(--color-borde);
+    font-size: 0.73rem;
+    color: var(--color-texto-secundario);
+    text-align: center;
+    margin-top: 2.5rem;
+    padding-top: 1rem;
+    border-top: none;
     font-family: var(--font-sans);
 }
 
@@ -366,6 +369,17 @@ input[type="checkbox"] {
 /* ────────────────────────────────────────────────────────────
    ACCESIBILIDAD — prefers-reduced-motion
    ──────────────────────────────────────────────────────────── */
+    .priority-align-spacer {
+    height: 4.4rem;
+}    
+    .section-gap {
+    height: 1.5rem;
+}
+    @media (max-width: 768px) {
+    .priority-align-spacer {
+        display: none;
+    }
+}
 @media (prefers-reduced-motion: reduce) {
     .summary-card,
     .result-box,
@@ -717,108 +731,115 @@ Si no subes ningún archivo, se carga automáticamente `data/agenda_ejemplo.csv`
 
             st.markdown("---")
 
-            filtro = st.radio(
-                "Filtrar por nivel",
-                ["Todos", "🔴 Solo ALTO", "🟡 Solo MEDIO", "🟢 Solo BAJO"],
-                horizontal=True, key="filtro_riesgo"
-            )
-            mapa = {"Todos": None, "🔴 Solo ALTO": "ALTO", "🟡 Solo MEDIO": "MEDIO", "🟢 Solo BAJO": "BAJO"}
-            nivel_filtro = mapa[filtro]
-            if nivel_filtro is None:
-                df_vista = df_pred
-            else:
-                df_vista = df_activos[df_activos["NivelRiesgo"] == nivel_filtro]
-            df_vista = df_vista.sort_values("HoraCita").reset_index(drop=True)
+            col_agenda, col_prioridad = st.columns([5, 2], gap="large")
 
-            badge_html = {
-                "ALTO":  '<span class="badge badge-alto">ALTO</span>',
-                "MEDIO": '<span class="badge badge-medio">MEDIO</span>',
-                "BAJO":  '<span class="badge badge-bajo">BAJO</span>',
-            }
-            color_fila = {"ALTO": "#fee2e2", "MEDIO": "#fef9c3", "BAJO": "#f0fdf4"}
-
-            filas_html = ""
-            for _, f in df_vista.iterrows():
-                nv = f["NivelRiesgo"]
-                estado_manual = f["EstadoManual"]
-                inactivo = estado_manual in ("Cancelada", "Reprogramada")
-                bg = "#f1f5f9" if inactivo else color_fila[nv]
-                estilo_texto = "text-decoration:line-through;color:#94a3b8;" if inactivo else ""
-                etiqueta_estado = (
-                    f'<span style="font-size:0.72rem;font-weight:700;color:#dc2626;">{estado_manual.upper()}</span>'
-                    if inactivo else '<span style="color:#94a3b8;font-size:0.78rem;">Sin cambios</span>'
+            with col_agenda:
+                filtro = st.radio(
+                    "Filtrar por nivel",
+                    ["Todos", "🔴 Solo ALTO", "🟡 Solo MEDIO", "🟢 Solo BAJO"],
+                    horizontal=True, key="filtro_riesgo"
                 )
-                filas_html += f"""
-                <tr style="background:{bg};{estilo_texto}">
-                  <td style="padding:0.5rem 0.8rem;font-weight:600;">{f['HoraCita']}</td>
-                  <td style="padding:0.5rem 0.8rem;color:#64748b;font-size:0.82rem;">{f['PacienteID']}</td>
-                  <td style="padding:0.5rem 0.8rem;">{f['Nombre']}</td>
-                  <td style="padding:0.5rem 0.8rem;text-align:center;">{int(f['Edad'])}</td>
-                  <td style="padding:0.5rem 0.8rem;font-size:0.82rem;">{f['Barrio']}</td>
-                  <td style="padding:0.5rem 0.8rem;text-align:center;font-weight:700;">{f['Probabilidad']*100:.1f}%</td>
-                  <td style="padding:0.5rem 0.8rem;text-align:center;">{badge_html[nv]}</td>
-                  <td style="padding:0.5rem 0.8rem;text-align:center;">{etiqueta_estado}</td>
-                </tr>"""
+                mapa = {"Todos": None, "🔴 Solo ALTO": "ALTO", "🟡 Solo MEDIO": "MEDIO", "🟢 Solo BAJO": "BAJO"}
+                nivel_filtro = mapa[filtro]
+                if nivel_filtro is None:
+                    df_vista = df_pred
+                else:
+                    df_vista = df_activos[df_activos["NivelRiesgo"] == nivel_filtro]
+                df_vista = df_vista.sort_values("HoraCita").reset_index(drop=True)
 
-            st.markdown(f"""
-            <table style="width:100%;border-collapse:collapse;border-radius:10px;overflow:hidden;font-size:0.85rem;">
-              <thead>
-                <tr style="background:#1a3a5c;color:white;">
-                  <th style="padding:0.6rem 0.8rem;text-align:left;">Hora</th>
-                  <th style="padding:0.6rem 0.8rem;text-align:left;">ID</th>
-                  <th style="padding:0.6rem 0.8rem;text-align:left;">Paciente</th>
-                  <th style="padding:0.6rem 0.8rem;text-align:center;">Edad</th>
-                  <th style="padding:0.6rem 0.8rem;text-align:left;">Barrio</th>
-                  <th style="padding:0.6rem 0.8rem;text-align:center;">Riesgo %</th>
-                  <th style="padding:0.6rem 0.8rem;text-align:center;">Nivel</th>
-                  <th style="padding:0.6rem 0.8rem;text-align:center;">Estado</th>
-                </tr>
-              </thead>
-              <tbody>{filas_html}</tbody>
-            </table>
-            """, unsafe_allow_html=True)
+                badge_html = {
+                    "ALTO":  '<span class="badge badge-alto">ALTO</span>',
+                    "MEDIO": '<span class="badge badge-medio">MEDIO</span>',
+                    "BAJO":  '<span class="badge badge-bajo">BAJO</span>',
+                }
+                color_fila = {"ALTO": "#fee2e2", "MEDIO": "#fef9c3", "BAJO": "#f0fdf4"}
 
-            st.markdown("---")
-            st.markdown("#### 📞 Lista de priorización — Campaña de confirmación (RF04)")
-            st.caption(
-                "Pacientes activos ordenados de mayor a menor riesgo, listos para "
-                "exportar o contactar por SMS/llamada. Excluye a los ya cancelados "
-                "o reprogramados."
-            )
+                filas_html = ""
+                for _, f in df_vista.iterrows():
+                    nv = f["NivelRiesgo"]
+                    estado_manual = f["EstadoManual"]
+                    inactivo = estado_manual in ("Cancelada", "Reprogramada")
+                    bg = "#f1f5f9" if inactivo else color_fila[nv]
+                    estilo_texto = "text-decoration:line-through;color:#94a3b8;" if inactivo else ""
+                    etiqueta_estado = (
+                        f'<span style="font-size:0.72rem;font-weight:700;color:#dc2626;">{estado_manual.upper()}</span>'
+                        if inactivo else '<span style="color:#94a3b8;font-size:0.78rem;">Sin cambios</span>'
+                    )
+                    filas_html += f"""
+                    <tr style="background:{bg};{estilo_texto}">
+                      <td style="padding:0.5rem 0.8rem;font-weight:600;">{f['HoraCita']}</td>
+                      <td style="padding:0.5rem 0.8rem;color:#64748b;font-size:0.82rem;">{f['PacienteID']}</td>
+                      <td style="padding:0.5rem 0.8rem;">{f['Nombre']}</td>
+                      <td style="padding:0.5rem 0.8rem;text-align:center;">{int(f['Edad'])}</td>
+                      <td style="padding:0.5rem 0.8rem;font-size:0.82rem;">{f['Barrio']}</td>
+                      <td style="padding:0.5rem 0.8rem;text-align:center;font-weight:700;">{f['Probabilidad']*100:.1f}%</td>
+                      <td style="padding:0.5rem 0.8rem;text-align:center;">{badge_html[nv]}</td>
+                      <td style="padding:0.5rem 0.8rem;text-align:center;">{etiqueta_estado}</td>
+                    </tr>"""
 
-            umbral_pct = st.slider(
-                "Mostrar pacientes con riesgo mayor o igual a:",
-                min_value=0, max_value=100, value=50, step=5,
-                key="rf04_umbral", format="%d%%"
-            )
-            umbral = umbral_pct / 100.0
+                st.markdown(f"""
+                <table style="width:100%;border-collapse:collapse;border-radius:10px;overflow:hidden;font-size:0.85rem;">
+                  <thead>
+                    <tr style="background:#1a3a5c;color:white;">
+                      <th style="padding:0.6rem 0.8rem;text-align:left;">Hora</th>
+                      <th style="padding:0.6rem 0.8rem;text-align:left;">ID</th>
+                      <th style="padding:0.6rem 0.8rem;text-align:left;">Paciente</th>
+                      <th style="padding:0.6rem 0.8rem;text-align:center;">Edad</th>
+                      <th style="padding:0.6rem 0.8rem;text-align:left;">Barrio</th>
+                      <th style="padding:0.6rem 0.8rem;text-align:center;">Riesgo %</th>
+                      <th style="padding:0.6rem 0.8rem;text-align:center;">Nivel</th>
+                      <th style="padding:0.6rem 0.8rem;text-align:center;">Estado</th>
+                    </tr>
+                  </thead>
+                  <tbody>{filas_html}</tbody>
+                </table>
+                """, unsafe_allow_html=True)
 
-            df_prioridad = df_activos[df_activos["Probabilidad"] >= umbral].sort_values(
-                "Probabilidad", ascending=False
-            ).reset_index(drop=True)
-
-            if len(df_prioridad) == 0:
-                st.info("Ningún paciente activo supera ese umbral de riesgo.")
-            else:
-                tabla_prioridad = df_prioridad[
-                    ["PacienteID", "Nombre", "Telefono", "HoraCita", "Probabilidad", "NivelRiesgo"]
-                ].copy()
-                tabla_prioridad["Probabilidad"] = tabla_prioridad["Probabilidad"].apply(
-                    lambda p: f"{p*100:.1f}%"
+            with col_prioridad:
+                st.markdown(
+                    '<div class="priority-align-spacer" aria-hidden="true"></div>',
+                    unsafe_allow_html=True
                 )
-                st.dataframe(tabla_prioridad, use_container_width=True, hide_index=True)
-
-                st.download_button(
-                    label=f"📞 Descargar lista de priorización — {len(df_prioridad)} pacientes (CSV)",
-                    data=tabla_prioridad.to_csv(index=False).encode("utf-8"),
-                    file_name=f"prioridad_confirmacion_{date.today().isoformat()}.csv",
-                    mime="text/csv",
-                    key="dl_prioridad"
+                st.markdown("#### 📞 Priorización (RF04)")
+                st.caption(
+                    "Pacientes activos ordenados de mayor a menor riesgo, listos para "
+                    "exportar o contactar por SMS/llamada. Excluye a los ya cancelados "
+                    "o reprogramados."
                 )
+
+                umbral_pct = st.slider(
+                    "Riesgo mínimo a mostrar:",
+                    min_value=0, max_value=100, value=50, step=5,
+                    key="rf04_umbral", format="%d%%"
+                )
+                umbral = umbral_pct / 100.0
+
+                df_prioridad = df_activos[df_activos["Probabilidad"] >= umbral].sort_values(
+                    "Probabilidad", ascending=False
+                ).reset_index(drop=True)
+
+                if len(df_prioridad) == 0:
+                    st.info("Ningún paciente activo supera ese umbral de riesgo.")
+                else:
+                    tabla_prioridad = df_prioridad[
+                        ["PacienteID", "Nombre", "Telefono", "HoraCita", "Probabilidad", "NivelRiesgo"]
+                    ].copy()
+                    tabla_prioridad["Probabilidad"] = tabla_prioridad["Probabilidad"].apply(
+                        lambda p: f"{p*100:.1f}%"
+                    )
+                    st.dataframe(tabla_prioridad, use_container_width=True, hide_index=True)
+
+                    st.download_button(
+                        label=f"📞 Descargar — {len(df_prioridad)} pacientes (CSV)",
+                        data=tabla_prioridad.to_csv(index=False).encode("utf-8"),
+                        file_name=f"prioridad_confirmacion_{date.today().isoformat()}.csv",
+                        mime="text/csv",
+                        key="dl_prioridad"
+                    )
 
             st.markdown("---")
             with st.container(border=True):
-                st.markdown('<div class="section-label">✏️ Registrar confirmación telefónica </div>', unsafe_allow_html=True)
+                st.markdown('<div class="section-label">✏️ Registrar confirmación telefónica (RF05)</div>', unsafe_allow_html=True)
                 st.caption(
                     "Si el paciente llamó para cancelar o reprogramar, regístralo aquí. "
                     "El cambio se guarda de inmediato y afecta el cálculo de riesgo y "
@@ -872,25 +893,29 @@ Si no subes ningún archivo, se carga automáticamente `data/agenda_ejemplo.csv`
                             st.success(f"Registrado: {nombre_sel} → {estado_final}")
                             st.rerun()
 
-                ediciones_actuales = cargar_ediciones()
-                if not ediciones_actuales.empty:
-                    with st.expander(f"📜 Historial de cambios ({len(ediciones_actuales)} registros)"):
-                        st.dataframe(
-                            ediciones_actuales.sort_values("Timestamp", ascending=False),
-                            use_container_width=True, hide_index=True
-                        )
-                        st.markdown("")
-                        confirmar_reinicio = st.checkbox(
-                            "Confirmo que quiero borrar TODO el historial de cambios de hoy",
-                            key="rf05_confirmar_reinicio"
-                        )
-                        if st.button("🔄 Reiniciar ediciones del día", key="rf05_reiniciar",
-                                     disabled=not confirmar_reinicio):
-                            if reiniciar_ediciones():
-                                st.success("Historial de ediciones reiniciado.")
-                                st.rerun()
+            ediciones_actuales = cargar_ediciones()
+            if not ediciones_actuales.empty:
+                st.markdown("---")
+                with st.expander(f"📜 Historial de cambios ({len(ediciones_actuales)} registros)"):
+                    st.dataframe(
+                        ediciones_actuales.sort_values("Timestamp", ascending=False),
+                        use_container_width=True, hide_index=True
+                    )
+                    st.markdown("")
+                    confirmar_reinicio = st.checkbox(
+                        "Confirmo que quiero borrar TODO el historial de cambios de hoy",
+                        key="rf05_confirmar_reinicio"
+                    )
+                    if st.button("🔄 Reiniciar ediciones del día", key="rf05_reiniciar",
+                                 disabled=not confirmar_reinicio):
+                        if reiniciar_ediciones():
+                            st.success("Historial de ediciones reiniciado.")
+                            st.rerun()
 
-            st.markdown("")
+                st.markdown(
+                '<div class="section-gap" aria-hidden="true"></div>',
+                unsafe_allow_html=True
+            )
             if len(df_vista) > 0:
                 df_exportar = df_vista[
                     ["HoraCita","PacienteID","Nombre","Edad","Barrio","Probabilidad","NivelRiesgo","EstadoManual"]
